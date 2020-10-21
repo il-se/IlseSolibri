@@ -1,8 +1,7 @@
 package ilse.solibri.rules;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -25,20 +24,29 @@ public class ParametricSeverityClashDetectionRule extends OneByOneRule {
     static final String PARAM_COMPONENT_FILTER_TARGET = "ILSE.componentFilterTarget";
     static final String PARAM_RESULT_FILENAME = "ILSE.resultFileName";
 
-    private final RuleParameters params = RuleParameters.of(this);
+    final private RuleParameters params = RuleParameters.of(this);
+
+    final RuleResources resources = RuleResources.of(this);
 
     final FilterParameter paramComponentFilter1 = this.getDefaultFilterParameter();
     final FilterParameter paramComponentFilter2 = params.createFilter(PARAM_COMPONENT_FILTER_TARGET);
     final StringParameter paramResultsFileName = this.params.createString(PARAM_RESULT_FILENAME);
-    final List<ParametricSeverityInterval> paramSeverityIntervals = ParametricSeverityInterval.fromResources(
-            params, Severity.LOW, Severity.MODERATE, Severity.CRITICAL);
+    final ParametricSeverityInterval paramIntervalPassing = ParametricSeverityInterval.fromResources(params, Severity.PASSED);
+    final ParametricSeverityInterval paramIntervalLow = ParametricSeverityInterval.fromResources(params, Severity.LOW);
+    final ParametricSeverityInterval paramIntervalModerate = ParametricSeverityInterval.fromResources(params, Severity.MODERATE);
+    final ParametricSeverityInterval paramIntervalCritical = ParametricSeverityInterval.fromResources(params, Severity.CRITICAL);
+    final List<ParametricSeverityInterval> paramSeverityIntervals = Arrays.asList(
+            paramIntervalPassing, paramIntervalLow, paramIntervalModerate, paramIntervalCritical);
 
     final ParametricSeverityClashDetectionRuleUIDefinition uiDefinition = new ParametricSeverityClashDetectionRuleUIDefinition(this);
 
-    private final double transparency = 0.5;
+    final private double transparency = 0.5;
+    final private Logger log;
 
-    private Logger log;
-    private BufferedWriter csvWriter;
+    // Per check session
+    private BufferedWriter sessionCsvWriter;
+    private Set<ComponentClashPair> sessionRuleComponentPairs;
+    private Map<String, ResultCategory> sessionResultCategories;
 
     public ParametricSeverityClashDetectionRule() {
         log = LoggerFactory.getILoggerFactory().getLogger(getClass().getCanonicalName());
@@ -49,29 +57,41 @@ public class ParametricSeverityClashDetectionRule extends OneByOneRule {
         String fileName = paramResultsFileName.getValue();
         if (null != fileName && !fileName.trim().isEmpty()) {
             try {
-                csvWriter = new BufferedWriter(new FileWriter(fileName));
-                log.info("Will create result file '" + fileName + "'.");
-                writeCsvHeader(csvWriter);
+                sessionCsvWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName), StandardCharsets.ISO_8859_1));
+                //csvWriter = new BufferedWriter(new FileWriter(fileName));
+                log.info("Will create result file '{}'.",fileName);
+                writeCsvHeader(sessionCsvWriter);
             } catch (Throwable e) {
-                log.error("Unable to create result file '" + fileName + "'. Exception: " + e);
+                log.error("Unable to create result file '{}': {}", fileName, e.getMessage());
             }
         }
-        log.info("Successfully finished precheck stage.");
+
+        sessionRuleComponentPairs = new HashSet<>();
+        sessionResultCategories = new HashMap<>();
+
+        log.info("Successfully finished pre-check stage.");
         return super.preCheck();
     }
 
     @Override
     public void postCheck() {
-        try {
-            if (null != csvWriter)
-                csvWriter.close();
+        log.info("Checked {} candidate clash component pairs.", sessionRuleComponentPairs.size());
+        List<Component> components = sessionRuleComponentPairs.stream().flatMap(p -> Stream.of(p.component1, p.component2)).sorted((a, b) -> a.getGUID().compareTo(b.getGUID())).collect(Collectors.toList());
+        Map<Integer, List<Component>> map = components.stream().collect(Collectors.groupingBy(Component::hashCode));
 
-            log.info("Successfully finished postcheck stage.");
+        // Close report CSV table, if existing
+        try {
+            if (null != sessionCsvWriter)
+                sessionCsvWriter.close();
+
+            log.info("Successfully finished post-check stage.");
         } catch (IOException e) {
             log.error(e.toString());
         }
         finally {
-            csvWriter = null;
+            sessionRuleComponentPairs = null;
+            sessionResultCategories = null;
+            sessionCsvWriter = null;
         }
     }
 
@@ -84,16 +104,16 @@ public class ParametricSeverityClashDetectionRule extends OneByOneRule {
 
         // Collect results
         List<ClashCandidate> candidates = ComponentClashPair
-                .fromComponents(component, targets.stream())
+                .fromComponents(component, targets.stream(), sessionRuleComponentPairs)
                 .collect(Collectors.toList());
 
-        if (null != csvWriter) {
+        if (null != sessionCsvWriter) {
             try {
                 for (ClashCandidate candidate : candidates)
-                    writeCsvLine(csvWriter, candidate);
+                    writeCsvLine(sessionCsvWriter, candidate);
 
             } catch (IOException e) {
-                log.error("Caught exception while writing to result file: " + e);
+                log.error("Caught exception while writing to result file: {}", e.getMessage());
             }
         }
 
@@ -101,7 +121,7 @@ public class ParametricSeverityClashDetectionRule extends OneByOneRule {
                 .map(c -> ClashSeverityInstance.findMostCritical(paramSeverityIntervals, c))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
-                .map(i -> getResultFromCandidate(i, resultFactory))
+                .map(i -> getResultFromCandidate(i, resultFactory, sessionResultCategories))
                 .collect(Collectors.toList());
     }
 
@@ -110,17 +130,29 @@ public class ParametricSeverityClashDetectionRule extends OneByOneRule {
         return uiDefinition.getDefinitionContainer();
     }
 
-    private Result getResultFromCandidate(ClashSeverityInstance instance, ResultFactory resultFactory)
+    private Result getResultFromCandidate(ClashSeverityInstance instance,
+                                          ResultFactory resultFactory, Map<String, ResultCategory> categoryMap)
     {
         ComponentClashPair cp = instance.candidate.getClashPair();
-        String description = String.format("%s (%s) intersects %s (%s)",
+        String description = String.format(resources.getString("ILSE.resultDescriptionPattern"),
                 cp.component1.getName(), cp.component1.getDisciplineName().orElse("no discipline"),
                 cp.component2.getName(), cp.component2.getDisciplineName().orElse("no discipline"));
 
-        String name = String.format("%s intersects %s", cp.component1.getName(), cp.component2.getName());
+        String name = String.format(resources.getString("ILSE.resultNamePattern"),
+                cp.component1.getName(), cp.component2.getName());
+
+        // Use generally for category passing least thresholds
+        ParametricSeverityClashCategory category = ParametricSeverityClashCategory.getCategoryOf(instance, paramIntervalPassing);
+
+        String id = String.format("%s.%s", instance.severity.name(), category.name());
+        ResultCategory resultCategory = categoryMap.computeIfAbsent(id, (s) -> {
+            String label = category.getLabel(resources, instance.severity);
+            log.info("Adding new result category '{}' with ID '{}'.", label, id);
+            return resultFactory.createCategory(id, label);
+        });
 
         return resultFactory
-            .create(name, description)
+            .create(name, description, resultCategory)
             .withInvolvedComponent(cp.component2)
             .withSeverity(instance.severity)
             .withVisualization(visualization -> {
@@ -130,7 +162,7 @@ public class ParametricSeverityClashDetectionRule extends OneByOneRule {
     }
 
     private void writeCsvHeader(BufferedWriter writer) throws IOException {
-        writer.write("GUID1; GUID2; MinVolume; MaxVolume; MinLength; MaxLength; CutMinLength; CutMaxLength; CutMinVolumeRatio; CutMinLengthRatio");
+        writer.write("GUID1; GUID2; min volume; max volume; min length; max length; cut min length; cut max length; cut volume");
         writer.newLine();
     }
 
@@ -145,8 +177,7 @@ public class ParametricSeverityClashDetectionRule extends OneByOneRule {
                 Double.toString(cp.maxLength),
                 Double.toString(candidate.minLength),
                 Double.toString(candidate.maxLength),
-                Double.toString(candidate.minVolumeRatio),
-                Double.toString(candidate.minLengthRatio)).collect(Collectors.joining("; ")));
+                Double.toString(candidate.volume)).collect(Collectors.joining("; ")));
         writer.newLine();
     }
 }

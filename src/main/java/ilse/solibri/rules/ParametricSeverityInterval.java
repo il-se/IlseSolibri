@@ -5,10 +5,6 @@ import com.solibri.smc.api.checking.RuleParameters;
 import com.solibri.smc.api.checking.Severity;
 import com.solibri.smc.api.model.PropertyType;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 public class ParametricSeverityInterval {
     final public Severity severity;
     final public DoubleParameter paramLengthRatioThreshold;
@@ -20,16 +16,10 @@ public class ParametricSeverityInterval {
         this.paramVolumeRatioThreshold = paramVolumeRatioThreshold;
     }
 
-    public static List<ParametricSeverityInterval> fromResources(RuleParameters params, Severity ... severity) {
-        List<ParametricSeverityInterval> severityIntervals = new ArrayList<>();
-        for (Severity s : severity) {
-            severityIntervals.add(
-                    new ParametricSeverityInterval(
-                            s, params.createDouble("ILSE.lengthRatio." + s.name(), PropertyType.PERCENTAGE),
-                            params.createDouble("ILSE.volumeRatio." + s.name(), PropertyType.PERCENTAGE))
-            );
-        }
-        return Collections.unmodifiableList(severityIntervals);
+    public static ParametricSeverityInterval fromResources(RuleParameters params, Severity severity) {
+        return new ParametricSeverityInterval(
+                    severity, params.createDouble("ILSE.lengthRatio." + severity.name(), PropertyType.PERCENTAGE),
+                    params.createDouble("ILSE.volumeRatio." + severity.name(), PropertyType.PERCENTAGE));
     }
 
     public boolean isPassing(ClashCandidate candidate) {

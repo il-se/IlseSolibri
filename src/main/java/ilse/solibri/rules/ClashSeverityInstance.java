@@ -17,7 +17,7 @@ public class ClashSeverityInstance {
     public static Optional<ClashSeverityInstance> findMostCritical(List<ParametricSeverityInterval> intervals, ClashCandidate candidate) {
         return intervals.stream()
                 .filter(i -> !i.isPassing(candidate))
-                // CRITICAL first
+                // Expected order: CRITICAL, MODERATE, LOW, PASSED;
                 .min((i1,i2) -> Integer.compare(i1.severity.ordinal(), i2.severity.ordinal()))
                 .map(i -> new ClashSeverityInstance(i.severity, candidate));
     }

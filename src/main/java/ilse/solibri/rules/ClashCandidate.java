@@ -8,7 +8,7 @@ import java.util.stream.Stream;
 
 public class ClashCandidate {
     private final ComponentClashPair componentClashPair;
-    public final double minLength, maxLength, minLengthRatio, minVolumeRatio, volume;
+    public final double minLength, maxLength, minLengthRatio, maxLengthRatio, minVolumeRatio, volume;
 
     ClashCandidate(ComponentClashPair componentClashPair, Intersection intersection) {
         this.componentClashPair = componentClashPair;
@@ -18,6 +18,8 @@ public class ClashCandidate {
         this.maxLength = extents.stream().max(Double::compareTo).get();
 
         this.minLengthRatio = minLength / componentClashPair.minLength;
+        this.maxLengthRatio = maxLength / componentClashPair.maxLength;
+
         this.volume = intersection.getVolume();
         this.minVolumeRatio = volume / componentClashPair.minVolume;
     }

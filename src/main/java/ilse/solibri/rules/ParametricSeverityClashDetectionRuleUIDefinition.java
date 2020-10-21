@@ -1,19 +1,14 @@
 package ilse.solibri.rules;
 
 import com.solibri.smc.api.checking.RuleResources;
-import com.solibri.smc.api.ui.BorderType;
-import com.solibri.smc.api.ui.UIComponent;
-import com.solibri.smc.api.ui.UIContainer;
-import com.solibri.smc.api.ui.UIContainerVertical;
-import com.solibri.smc.api.ui.UILabel;
-import com.solibri.smc.api.ui.UIRuleParameter;
+import com.solibri.smc.api.ui.*;
 
 class ParametricSeverityClashDetectionRuleUIDefinition {
-	private final ParametricSeverityClashDetectionRule parametricSeverityClashDetectionRule;
+	private final ParametricSeverityClashDetectionRule ruleInstance;
 	private final UIContainer uiDefinition;
 
-	public ParametricSeverityClashDetectionRuleUIDefinition(ParametricSeverityClashDetectionRule parametricSeverityClashDetectionRule) {
-		this.parametricSeverityClashDetectionRule = parametricSeverityClashDetectionRule;
+	public ParametricSeverityClashDetectionRuleUIDefinition(ParametricSeverityClashDetectionRule ruleInstance) {
+		this.ruleInstance = ruleInstance;
 		this.uiDefinition = createUIDefinition();
 	}
 
@@ -22,22 +17,23 @@ class ParametricSeverityClashDetectionRuleUIDefinition {
 	}
 
 	private UIContainer createUIDefinition() {
-		RuleResources resources = RuleResources.of(parametricSeverityClashDetectionRule);
 		UIContainer uiContainer = UIContainerVertical.create(
-				resources.getString("ILSE.rule.CD1.TITLE"),
+				ruleInstance.resources.getString("ILSE.rule.CD1.TITLE"),
 				BorderType.LINE);
 
 		uiContainer.addComponent(UILabel.create(
-				resources.getString("ILSE.rule.CD1.DESCRIPTION")));
+				ruleInstance.resources.getString("ILSE.rule.CD1.DESCRIPTION")));
 
-		uiContainer.addComponent(createFirstComponentFilterUIDefinition());
-		uiContainer.addComponent(createSecondComponentFilterUIDefinition());
+		UIContainer filterContainer = UIContainerHorizontal.create(ruleInstance.resources.getString("ILSE.filterContainer.TITLE"), BorderType.LINE );
+		filterContainer.addComponent(createFirstComponentFilterUIDefinition());
+		filterContainer.addComponent(createSecondComponentFilterUIDefinition());
+		uiContainer.addComponent(filterContainer);
 
-		for (ParametricSeverityInterval interval : parametricSeverityClashDetectionRule.paramSeverityIntervals)
-			uiContainer.addComponent(createParameterUIDefinition(resources, interval));
+		for (ParametricSeverityInterval interval : ruleInstance.paramSeverityIntervals)
+			uiContainer.addComponent(createParameterUIDefinition(ruleInstance.resources, interval));
 
 		UIContainer resultContainer = UIContainerVertical.create();
-		resultContainer.addComponent(UIRuleParameter.create(parametricSeverityClashDetectionRule.paramResultsFileName));
+		resultContainer.addComponent(UIRuleParameter.create(ruleInstance.paramResultsFileName));
 		uiContainer.addComponent(resultContainer);
 
 		return uiContainer;
@@ -45,13 +41,13 @@ class ParametricSeverityClashDetectionRuleUIDefinition {
 
 	private UIComponent createFirstComponentFilterUIDefinition() {
 		UIContainer uiContainer = UIContainerVertical.create();
-		uiContainer.addComponent(UIRuleParameter.create(parametricSeverityClashDetectionRule.paramComponentFilter1));
+		uiContainer.addComponent(UIRuleParameter.create(ruleInstance.paramComponentFilter1));
 		return uiContainer;
 	}
 
 	private UIComponent createSecondComponentFilterUIDefinition() {
 		UIContainer uiContainer = UIContainerVertical.create();
-		uiContainer.addComponent(UIRuleParameter.create(parametricSeverityClashDetectionRule.paramComponentFilter2));
+		uiContainer.addComponent(UIRuleParameter.create(ruleInstance.paramComponentFilter2));
 		return uiContainer;
 	}
 
