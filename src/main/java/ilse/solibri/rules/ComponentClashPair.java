@@ -1,5 +1,6 @@
 package ilse.solibri.rules;
 
+import com.solibri.geometry.primitive3d.Triangle3d;
 import com.solibri.smc.api.model.Component;
 
 import java.util.List;
@@ -16,7 +17,6 @@ public class ComponentClashPair {
     private ComponentClashPair(Component c1, Component c2) {
         this.component1 = c1;
         this.component2 = c2;
-
         double v1 = c1.getTriangleMesh().getVolume();
         double v2 = c2.getTriangleMesh().getVolume();
         this.minVolume = Math.min(v1, v2);

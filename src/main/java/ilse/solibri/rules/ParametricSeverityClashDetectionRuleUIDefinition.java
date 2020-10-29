@@ -24,13 +24,29 @@ class ParametricSeverityClashDetectionRuleUIDefinition {
 		uiContainer.addComponent(UILabel.create(
 				ruleInstance.resources.getString("ILSE.rule.CD1.DESCRIPTION")));
 
-		UIContainer filterContainer = UIContainerHorizontal.create(ruleInstance.resources.getString("ILSE.filterContainer.TITLE"), BorderType.LINE );
+		UIContainer filterContainer = UIContainerHorizontal.create(
+				ruleInstance.resources.getString("ILSE.filterContainer.TITLE"), BorderType.LINE );
+
 		filterContainer.addComponent(createFirstComponentFilterUIDefinition());
 		filterContainer.addComponent(createSecondComponentFilterUIDefinition());
 		uiContainer.addComponent(filterContainer);
 
+		UIContainer parameterContainer = UIContainerHorizontal.create();
+
+		UIContainer containerSeverity = UIContainerVertical.create(
+				ruleInstance.resources.getString("ILSE.parameterContainer.TITLE"), BorderType.LINE
+		);
 		for (ParametricSeverityInterval interval : ruleInstance.paramSeverityIntervals)
-			uiContainer.addComponent(createParameterUIDefinition(ruleInstance.resources, interval));
+			containerSeverity.addComponent(createParameterUIDefinition(ruleInstance.resources, interval));
+		parameterContainer.addComponent(containerSeverity);
+
+		UIContainer containerCategory = UIContainerVertical.create(
+				ruleInstance.resources.getString("ILSE.category.TITLE"), BorderType.LINE
+		);
+		containerCategory.addComponent(UIRuleParameter.create(ruleInstance.paramIntervalCategory.paramLengthRatioThreshold));
+		containerCategory.addComponent(UIRuleParameter.create(ruleInstance.paramIntervalCategory.paramVolumeRatioThreshold));
+		parameterContainer.addComponent(containerCategory);
+		uiContainer.addComponent(parameterContainer);
 
 		UIContainer resultContainer = UIContainerVertical.create();
 		resultContainer.addComponent(UIRuleParameter.create(ruleInstance.paramResultsFileName));

@@ -5,15 +5,12 @@ import com.solibri.smc.api.checking.RuleParameters;
 import com.solibri.smc.api.checking.Severity;
 import com.solibri.smc.api.model.PropertyType;
 
-public class ParametricSeverityInterval {
+public class ParametricSeverityInterval extends ParametricThresholds {
     final public Severity severity;
-    final public DoubleParameter paramLengthRatioThreshold;
-    final public DoubleParameter paramVolumeRatioThreshold;
 
     public ParametricSeverityInterval(Severity severity, DoubleParameter paramLengthRatioThreshold, DoubleParameter paramVolumeRatioThreshold) {
+        super(paramLengthRatioThreshold, paramVolumeRatioThreshold);
         this.severity = severity;
-        this.paramLengthRatioThreshold = paramLengthRatioThreshold;
-        this.paramVolumeRatioThreshold = paramVolumeRatioThreshold;
     }
 
     public static ParametricSeverityInterval fromResources(RuleParameters params, Severity severity) {

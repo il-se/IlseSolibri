@@ -13,11 +13,11 @@ public enum ParametricSeverityClashCategory {
         return ruleResources.getString(String.format("ILSE.category.%s.%s", severity.name(), this.name()));
     }
 
-    public static ParametricSeverityClashCategory getCategoryOf(ClashSeverityInstance csi, ParametricSeverityInterval threshold) {
-        if (threshold.paramVolumeRatioThreshold.getValue() > (1.0 - csi.candidate.minVolumeRatio))
+    public static ParametricSeverityClashCategory getCategoryOf(ClashSeverityInstance csi, ParametricThresholds thresholds) {
+        if (thresholds.paramVolumeRatioThreshold.getValue() > csi.candidate.minVolumeRatio)
             // If exceeds upper threshold of volume cut
             return ParametricSeverityClashCategory.fullComponentIntersection;
-        else if (threshold.paramLengthRatioThreshold.getValue() > (1.0 - csi.candidate.maxLengthRatio))
+        else if (thresholds.paramLengthRatioThreshold.getValue() > csi.candidate.maxLengthRatio)
             // If exceeds upper threshold of max length ratio
             return ParametricSeverityClashCategory.fullExtentIntersection;
         return ParametricSeverityClashCategory.general;

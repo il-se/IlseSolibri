@@ -31,12 +31,12 @@ public class ParametricSeverityClashDetectionRule extends OneByOneRule {
     final FilterParameter paramComponentFilter1 = this.getDefaultFilterParameter();
     final FilterParameter paramComponentFilter2 = params.createFilter(PARAM_COMPONENT_FILTER_TARGET);
     final StringParameter paramResultsFileName = this.params.createString(PARAM_RESULT_FILENAME);
-    final ParametricSeverityInterval paramIntervalPassing = ParametricSeverityInterval.fromResources(params, Severity.PASSED);
+    final ParametricThresholds paramIntervalCategory = ParametricThresholds.fromResources(params, "ILSE.category");
     final ParametricSeverityInterval paramIntervalLow = ParametricSeverityInterval.fromResources(params, Severity.LOW);
     final ParametricSeverityInterval paramIntervalModerate = ParametricSeverityInterval.fromResources(params, Severity.MODERATE);
     final ParametricSeverityInterval paramIntervalCritical = ParametricSeverityInterval.fromResources(params, Severity.CRITICAL);
     final List<ParametricSeverityInterval> paramSeverityIntervals = Arrays.asList(
-            paramIntervalPassing, paramIntervalLow, paramIntervalModerate, paramIntervalCritical);
+            paramIntervalLow, paramIntervalModerate, paramIntervalCritical);
 
     final ParametricSeverityClashDetectionRuleUIDefinition uiDefinition = new ParametricSeverityClashDetectionRuleUIDefinition(this);
 
@@ -134,15 +134,17 @@ public class ParametricSeverityClashDetectionRule extends OneByOneRule {
                                           ResultFactory resultFactory, Map<String, ResultCategory> categoryMap)
     {
         ComponentClashPair cp = instance.candidate.getClashPair();
-        String description = String.format(resources.getString("ILSE.resultDescriptionPattern"),
-                cp.component1.getName(), cp.component1.getDisciplineName().orElse("no discipline"),
-                cp.component2.getName(), cp.component2.getDisciplineName().orElse("no discipline"));
+        String description = String.format(
+                resources.getString(String.format("ILSE.category.%s.resultDescriptionPattern", instance.severity.name())),
+                cp.component1.getName(), cp.component1.getDisciplineName().orElse(resources.getString("ILSE.label.nodiscipline")),
+                cp.component2.getName(), cp.component2.getDisciplineName().orElse(resources.getString("ILSE.label.nodiscipline")));
 
-        String name = String.format(resources.getString("ILSE.resultNamePattern"),
+        String name = String.format(
+                resources.getString(String.format("ILSE.category.%s.resultNamePattern", instance.severity.name())),
                 cp.component1.getName(), cp.component2.getName());
 
         // Use generally for category passing least thresholds
-        ParametricSeverityClashCategory category = ParametricSeverityClashCategory.getCategoryOf(instance, paramIntervalPassing);
+        ParametricSeverityClashCategory category = ParametricSeverityClashCategory.getCategoryOf(instance, paramIntervalCategory);
 
         String id = String.format("%s.%s", instance.severity.name(), category.name());
         ResultCategory resultCategory = categoryMap.computeIfAbsent(id, (s) -> {
